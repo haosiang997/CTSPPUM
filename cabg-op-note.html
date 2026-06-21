@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CABG Op Note Generator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --blue: #1a6fc4; --blue-light: #e8f0fb; --blue-dark: #0d4a8a;
+    --text: #1a1a1a; --muted: #666; --border: #d0d5dd;
+    --bg: #f8f9fb; --card: #ffffff; --success: #16a34a;
+    --danger: #dc2626; --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 40px; }
+
+  /* Header */
+  .header { background: var(--blue); color: white; padding: 16px 20px 14px; position: sticky; top: 0; z-index: 10; }
+  .header h1 { font-size: 17px; font-weight: 600; }
+  .header p { font-size: 12px; opacity: .75; margin-top: 2px; }
+
+  /* Progress */
+  .progress-wrap { background: white; padding: 12px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 54px; z-index: 9; }
+  .progress-bar { height: 4px; background: #e5e7eb; border-radius: 2px; }
+  .progress-fill { height: 100%; background: var(--blue); border-radius: 2px; transition: width .3s; }
+  .step-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* Steps */
+  .step { display: none; padding: 20px; }
+  .step.active { display: block; }
+  .step-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .step-sub { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+
+  /* Field label */
+  .field { margin-bottom: 20px; }
+  .label { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; display: block; }
+
+  /* Pill buttons */
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { padding: 10px 16px; border-radius: 20px; border: 1.5px solid var(--border); font-size: 14px; cursor: pointer; background: white; color: var(--text); user-select: none; transition: all .15s; }
+  .pill.sel { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); font-weight: 500; }
+  .pill-multi.sel { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); }
+
+  /* Text/number inputs */
+  input[type=text], input[type=number], textarea {
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 15px; font-family: inherit; color: var(--text); background: white;
+    -webkit-appearance: none; appearance: none;
+  }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus { outline: none; border-color: var(--blue); }
+  input[type=number] { -moz-appearance: textfield; }
+  input[type=number]::-webkit-inner-spin-button { opacity: 1; }
+
+  /* Checkbox row */
+  .check-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .check-item { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: white; cursor: pointer; user-select: none; font-size: 14px; }
+  .check-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
+  .check-item.checked { border-color: var(--blue); background: var(--blue-light); color: var(--blue-dark); }
+
+  /* Graft rows */
+  .graft-row { display: grid; grid-template-columns: 80px 1fr 80px 44px; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .graft-row select { padding: 10px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; background: white; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
+  .graft-row input { padding: 10px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; }
+  .rm-btn { width: 44px; height: 44px; border: 1.5px solid #fca5a5; border-radius: var(--radius-sm); background: #fff5f5; color: var(--danger); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .add-btn { padding: 10px 16px; border: 1.5px dashed var(--blue); border-radius: var(--radius-sm); color: var(--blue); background: var(--blue-light); font-size: 14px; cursor: pointer; width: 100%; text-align: center; margin-top: 4px; }
+  .graft-header { display: grid; grid-template-columns: 80px 1fr 80px 44px; gap: 8px; margin-bottom: 4px; }
+  .graft-header span { font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; }
+
+  /* TTFM */
+  .ttfm-block { background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 12px; }
+  .ttfm-graft-name { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--blue-dark); }
+  .ttfm-row-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; color: var(--muted); }
+  .ttfm-row-label.xc-label { color: #c2410c; }
+  .ttfm-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .ttfm-col label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; display: block; }
+  .ttfm-col input { padding: 10px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; width: 100%; text-align: center; -webkit-appearance: none; }
+  .ttfm-col input:focus { outline: none; border-color: var(--blue); }
+  .xc-toggle-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: none; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 2px; width: 100%; }
+  .xc-toggle-btn.active { border-style: solid; border-color: #f97316; background: #fff7ed; color: #c2410c; }
+  .ttfm-xc-row { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #f97316; }
+  .ttfm-xc-row.visible { display: block; }
+
+  /* Inline row */
+  .inline-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .number-with-label { display: flex; align-items: center; gap: 10px; }
+  .number-with-label input { width: 80px; flex-shrink: 0; }
+
+  /* Navigation */
+  .nav { display: flex; gap: 12px; padding: 16px 20px; background: white; border-top: 1px solid var(--border); position: sticky; bottom: 0; }
+  .btn { flex: 1; padding: 14px; border-radius: var(--radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-secondary { background: #f3f4f6; color: var(--text); }
+  .btn-primary { background: var(--blue); color: white; }
+  .btn-success { background: var(--success); color: white; }
+  .btn:active { opacity: .85; transform: scale(.98); }
+
+  /* Output */
+  #output-section { display: none; padding: 20px; }
+  .output-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .output-card h3 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
+  .output-text { font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: var(--text); font-family: -apple-system, 'Courier New', monospace; }
+  .copy-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border: 1.5px solid var(--blue); border-radius: var(--radius-sm); background: var(--blue-light); color: var(--blue-dark); font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  .copy-btn.copied { border-color: var(--success); background: #dcfce7; color: var(--success); }
+  .copy-btn-sm { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px 14px; border: 1.5px solid #d0d5dd; border-radius: var(--radius-sm); background: #f9fafb; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 8px; }
+  .copy-btn-sm.copied { border-color: var(--success); background: #dcfce7; color: var(--success); }
+  .ttfm-divider { border: none; border-top: 1px dashed var(--border); margin: 10px 0 6px; }
+  .ttfm-hint { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 4px; }
+  .restart-btn { display: block; text-align: center; padding: 14px; border: none; background: #f3f4f6; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; color: var(--muted); cursor: pointer; width: 100%; }
+  .ttfm-note { background: #fffbeb; border: 1px solid #fcd34d; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>CABG Op Note Generator</h1>
+  <p>UMMC Cardiothoracic Surgery — Menara Selatan</p>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="prog" style="width:14%"></div></div>
+  <div class="step-label" id="step-label">Step 1 of 7 — Procedure</div>
+</div>
+
+<!-- STEP 1: Procedure -->
+<div class="step active" id="s1">
+  <div class="step-title">Procedure type</div>
+  <div class="step-sub">Select one</div>
+  <div class="field">
+    <div class="pills" id="proc-pills">
+      <span class="pill sel" data-val="CABG only (on-pump)">CABG only</span>
+      <span class="pill" data-val="CABG + AVR (Perceval)">CABG + AVR (Perceval)</span>
+      <span class="pill" data-val="CABG + AVR (conventional)">CABG + AVR (conventional)</span>
+      <span class="pill" data-val="OPCAB">OPCAB</span>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2: Findings -->
+<div class="step" id="s2">
+  <div class="step-title">Operative findings</div>
+  <div class="step-sub">Sternum, pericardium, aorta</div>
+  <div class="field">
+    <span class="label">Sternum</span>
+    <div class="pills" id="sternum-pills">
+      <span class="pill" data-val="Sternum healthy">Healthy</span>
+      <span class="pill" data-val="Osteoporotic bone">Osteoporotic</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Pericardial effusion</span>
+    <div class="pills" id="peri-pills">
+      <span class="pill" data-val="No pericardial effusion">None</span>
+      <span class="pill" data-val="Minimal pericardial effusion">Minimal</span>
+      <span class="pill" data-val="Pericardial effusion present">Present</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Aorta</span>
+    <div class="pills" id="aorta-pills">
+      <span class="pill" data-val="Aorta soft, not calcified">Soft, not calcified</span>
+      <span class="pill" data-val="Epicardial USG — no calcification over cannulation and proximal anastomosis site">Epicardial USG — no calcification</span>
+      <span class="pill" data-val="Aorta calcified">Calcified</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Adhesions</span>
+    <div class="pills" id="adhesion-pills">
+      <span class="pill" data-val="">None</span>
+      <span class="pill" data-val="Lung adhesion to pericardium">Lung adhesion to pericardium</span>
+      <span class="pill" data-val="Pericardial adhesions">Pericardial adhesions</span>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3: Conduits -->
+<div class="step" id="s3">
+  <div class="step-title">Conduit harvesting</div>
+  <div class="step-sub">SVG, LIMA, radial artery</div>
+  <div class="field">
+    <span class="label">SVG — leg</span>
+    <div class="pills" id="svg-leg-pills">
+      <span class="pill" data-val="Left">Left</span>
+      <span class="pill" data-val="Right">Right</span>
+      <span class="pill" data-val="Bilateral">Bilateral</span>
+      <span class="pill" data-val="">Not used</span>
+    </div>
+  </div>
+  <div class="field" id="svg-detail" style="display:none;">
+    <span class="label">SVG — technique</span>
+    <div class="pills" id="svg-tech-pills">
+      <span class="pill" data-val="Uniportal EVH">Uniportal EVH</span>
+      <span class="pill" data-val="Stab-and-grab EVH">Stab-and-grab EVH</span>
+      <span class="pill" data-val="Open">Open</span>
+      <span class="pill" data-val="Extended open after EVH">Extended open after EVH</span>
+    </div>
+  </div>
+  <div class="field" id="svg-qual-field" style="display:none;">
+    <span class="label">SVG — quality</span>
+    <div class="pills" id="svg-qual-pills">
+      <span class="pill" data-val="good quality and size">Good size &amp; quality</span>
+      <span class="pill" data-val="small calibre and poor quality">Small-ish / poor</span>
+      <span class="pill" data-val="good calibre and quality">Good calibre</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">LIMA</span>
+    <div class="pills" id="lima-pills">
+      <span class="pill" data-val="sim-pedicled">Simultaneous, pedicled</span>
+      <span class="pill" data-val="sim-skeletonised">Simultaneous, skeletonised</span>
+      <span class="pill" data-val="after-pedicled">After SVG, pedicled</span>
+      <span class="pill" data-val="injured">Injured → SVG to LAD instead</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Radial artery</span>
+    <div class="pills" id="ra-pills">
+      <span class="pill" data-val="">Not used</span>
+      <span class="pill" data-val="left-open">Left, open</span>
+      <span class="pill" data-val="left-pedicled">Left, pedicled</span>
+      <span class="pill" data-val="right-open">Right, open</span>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 4: Grafts -->
+<div class="step" id="s4">
+  <div class="step-title">Graft plan</div>
+  <div class="step-sub">Add each conduit → target with vessel size</div>
+  <div class="graft-header">
+    <span>Conduit</span><span>Target</span><span>Size</span><span></span>
+  </div>
+  <div id="graft-rows"></div>
+  <button class="add-btn" onclick="addGraft()">+ Add graft</button>
+  <div class="field" style="margin-top:20px;">
+    <span class="label">Targets NOT grafted (optional)</span>
+    <input type="text" id="not-grafted" placeholder="e.g. OM — small target, poor distal runoff">
+  </div>
+</div>
+
+<!-- STEP 5: TTFM -->
+<div class="step" id="s5">
+  <div class="step-title">TTFM values</div>
+  <div class="step-sub">Enter PI, DF%, Flow for each graft. Tap "+ Add XC reading" if on-clamp measurements were taken.</div>
+  <div id="ttfm-blocks"></div>
+</div>
+
+<!-- STEP 6: Times & cardioplegia -->
+<div class="step" id="s6">
+  <div class="step-title">Times &amp; cardioplegia</div>
+  <div class="step-sub">Bypass parameters</div>
+  <div class="field">
+    <div class="inline-row">
+      <div>
+        <span class="label">Cross clamp time (mins)</span>
+        <input type="number" id="xc-time" placeholder="83">
+      </div>
+      <div>
+        <span class="label">CPB time (mins)</span>
+        <input type="number" id="cpb-time" placeholder="122">
+      </div>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Cardioplegia</span>
+    <div class="pills" id="cardio-pills">
+      <span class="pill" data-val="antegrade modified Del Nido">Del Nido</span>
+      <span class="pill" data-val="antegrade cold blood">Cold blood</span>
+      <span class="pill" data-val="direct antegrade cold blood">Direct antegrade cold blood</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Temperature</span>
+    <div class="pills" id="temp-pills">
+      <span class="pill" data-val="drifted down to 35°C">Drifted to 35°C</span>
+      <span class="pill" data-val="cooled down to 32°C">Cooled to 32°C</span>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 7: Closing -->
+<div class="step" id="s7">
+  <div class="step-title">Closing details</div>
+  <div class="step-sub">Anastomosis, pacing wire, drains, sternal</div>
+  <div class="field">
+    <span class="label">Anastomosis technique</span>
+    <div class="pills" id="anast-pills">
+      <span class="pill" data-val="standard">Standard (side-biting clamp)</span>
+      <span class="pill" data-val="single-xc">Single cross clamp</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Heparin</span>
+    <div class="pills" id="heparin-pills">
+      <span class="pill" data-val="Full">Full dose</span>
+      <span class="pill" data-val="Half">Half dose</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Pacing wire</span>
+    <div class="pills" id="pacing-pills">
+      <span class="pill" data-val="none">None</span>
+      <span class="pill" data-val="1RV">1 RV wire</span>
+      <span class="pill" data-val="2RV">2 RV wires</span>
+      <span class="pill" data-val="RA+RV">RA + RV (1 each)</span>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Drains inserted</span>
+    <div class="check-row" id="drain-checks">
+      <label class="check-item checked" id="lbl-med"><input type="checkbox" id="drain-med" checked onchange="updateCheck('lbl-med',this)"> Mediastinal</label>
+      <label class="check-item checked" id="lbl-lp"><input type="checkbox" id="drain-lp" checked onchange="updateCheck('lbl-lp',this)"> Left pleural</label>
+      <label class="check-item" id="lbl-rp"><input type="checkbox" id="drain-rp" onchange="updateCheck('lbl-rp',this)"> Right pleural</label>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Sternal closure</span>
+    <div class="number-with-label">
+      <input type="number" id="sternal-num" value="6" min="1" max="12" style="width:70px;">
+      <div class="pills" id="sternal-pills">
+        <span class="pill" data-val="single">single wires</span>
+        <span class="pill" data-val="figure-of-eight">figure-of-eight wires</span>
+      </div>
+    </div>
+  </div>
+  <div class="field">
+    <span class="label">Special notes / adverse events</span>
+    <textarea id="adverse" rows="3" placeholder="e.g. competitive flow in SVG to OM, LIMA injury..."></textarea>
+  </div>
+</div>
+
+<!-- OUTPUT -->
+<div id="output-section">
+  <div class="output-card">
+    <h3>Operative Findings</h3>
+    <div class="output-text" id="findings-out"></div>
+    <button class="copy-btn" onclick="copySection('findings-out', this)">📋 Copy findings</button>
+    <hr class="ttfm-divider">
+    <div class="ttfm-hint">Copy TTFM lines only — to paste & replace after desktop extraction:</div>
+    <button class="copy-btn-sm" id="copy-ttfm-btn" onclick="copyTTFMOnly(this)">📋 Copy TTFM lines only</button>
+  </div>
+  <div class="output-card">
+    <h3>Operative Steps / Procedure Details</h3>
+    <div class="output-text" id="steps-out"></div>
+    <button class="copy-btn" onclick="copySection('steps-out', this)">📋 Copy operative steps</button>
+  </div>
+  <button class="restart-btn" onclick="restart()">↩ Start new case</button>
+</div>
+
+<!-- NAV -->
+<div class="nav" id="nav-bar">
+  <button class="btn btn-secondary" id="btn-back" onclick="prevStep()" style="display:none;">Back</button>
+  <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Next</button>
+</div>
+
+<script>
+let cur = 1;
+const total = 7;
+const state = {
+  procedure:'CABG only (on-pump)', sternum:'', pericardium:'', aorta:'', adhesion:'',
+  svgLeg:'', svgTech:'', svgQual:'', lima:'', ra:'',
+  grafts:[], ttfm:[],
+  xcTime:'', cpbTime:'', cardioplegia:'', temperature:'',
+  anastTech:'', heparin:'', pacing:'', sternalType:'single',
+};
+
+// Pill setup
+function pills(id, key, multi=false) {
+  document.querySelectorAll('#'+id+' .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      if(!multi) document.querySelectorAll('#'+id+' .pill').forEach(x=>x.classList.remove('sel'));
+      p.classList.toggle('sel');
+      if(!multi) state[key] = p.classList.contains('sel') ? p.dataset.val : '';
+    });
+  });
+}
+pills('proc-pills','procedure');
+pills('sternum-pills','sternum');
+pills('peri-pills','pericardium');
+pills('aorta-pills','aorta');
+pills('adhesion-pills','adhesion');
+pills('svg-leg-pills','svgLeg');
+pills('svg-tech-pills','svgTech');
+pills('svg-qual-pills','svgQual');
+pills('lima-pills','lima');
+pills('ra-pills','ra');
+pills('cardio-pills','cardioplegia');
+pills('temp-pills','temperature');
+pills('anast-pills','anastTech');
+pills('heparin-pills','heparin');
+pills('pacing-pills','pacing');
+pills('sternal-pills','sternalType');
+document.querySelector('#proc-pills .pill.sel').click();
+
+// SVG detail visibility
+document.querySelectorAll('#svg-leg-pills .pill').forEach(p => {
+  p.addEventListener('click', () => {
+    const show = p.dataset.val !== '';
+    document.getElementById('svg-detail').style.display = show ? 'block' : 'none';
+    document.getElementById('svg-qual-field').style.display = show ? 'block' : 'none';
+  });
+});
+
+// Drain check
+function updateCheck(lblId, el) {
+  document.getElementById(lblId).classList.toggle('checked', el.checked);
+}
+
+// Grafts
+let graftId = 0;
+function addGraft(c='SVG', t='', sz='1.5mm') {
+  graftId++;
+  const id = 'gr'+graftId;
+  const row = document.createElement('div');
+  row.className = 'graft-row'; row.id = id;
+  row.innerHTML = `
+    <select>
+      <option ${c==='LIMA'?'selected':''}>LIMA</option>
+      <option ${c==='SVG'?'selected':''}>SVG</option>
+      <option ${c==='RA'?'selected':''}>RA</option>
+    </select>
+    <input type="text" placeholder="LAD, OM, PDA..." value="${t}">
+    <select>
+      <option value="1.25mm" ${sz==='1.25mm'?'selected':''}>1.25mm</option>
+      <option value="1.5mm" ${sz==='1.5mm'?'selected':''}>1.5mm</option>
+      <option value="1.75mm" ${sz==='1.75mm'?'selected':''}>1.75mm</option>
+      <option value="2.0mm" ${sz==='2.0mm'?'selected':''}>2.0mm</option>
+    </select>
+    <button class="rm-btn" onclick="document.getElementById('${id}').remove()">×</button>`;
+  document.getElementById('graft-rows').appendChild(row);
+}
+addGraft('LIMA','LAD','1.5mm');
+addGraft('SVG','OM','1.5mm');
+
+function getGrafts() {
+  return [...document.querySelectorAll('#graft-rows .graft-row')].map(r => {
+    const s = r.querySelectorAll('select');
+    return { conduit:s[0].value, target:r.querySelector('input').value.trim(), size:s[1].value };
+  }).filter(g => g.target);
+}
+
+// TTFM — separate PI / DF / Flow inputs, with optional XC row toggle
+function buildTTFM() {
+  const grafts = getGrafts();
+  state.grafts = grafts;
+  const cont = document.getElementById('ttfm-blocks');
+  cont.innerHTML = '';
+  grafts.forEach((g, i) => {
+    const bid = 'ttfm-b'+i;
+    const xid = 'ttfm-xc'+i;
+    const d = document.createElement('div');
+    d.className = 'ttfm-block';
+    d.innerHTML = `
+      <div class="ttfm-graft-name">${g.conduit} to ${g.target} (${g.size})</div>
+      <div class="ttfm-row-label">Off-clamp reading</div>
+      <div class="ttfm-inputs" id="${bid}">
+        <div class="ttfm-col"><label>PI</label><input type="number" step="0.1" min="0" placeholder="—" id="${bid}-pi"></div>
+        <div class="ttfm-col"><label>DF%</label><input type="number" min="0" max="100" placeholder="—" id="${bid}-df"></div>
+        <div class="ttfm-col"><label>Flow</label><input type="number" min="0" placeholder="—" id="${bid}-fl"></div>
+      </div>
+      <button class="xc-toggle-btn" id="${xid}-btn" onclick="toggleXCRow('${xid}', this)">+ Add XC reading (on cross-clamp)</button>
+      <div class="ttfm-xc-row" id="${xid}">
+        <div class="ttfm-row-label xc-label">On cross-clamp (XC)</div>
+        <div class="ttfm-inputs">
+          <div class="ttfm-col"><label>PI</label><input type="number" step="0.1" min="0" placeholder="—" id="${xid}-pi"></div>
+          <div class="ttfm-col"><label>DF%</label><input type="number" min="0" max="100" placeholder="—" id="${xid}-df"></div>
+          <div class="ttfm-col"><label>Flow</label><input type="number" min="0" placeholder="—" id="${xid}-fl"></div>
+        </div>
+      </div>`;
+    cont.appendChild(d);
+  });
+}
+
+function toggleXCRow(xid, btn) {
+  const row = document.getElementById(xid);
+  const on = row.classList.toggle('visible');
+  btn.classList.toggle('active', on);
+  btn.textContent = on ? '− Remove XC reading' : '+ Add XC reading (on cross-clamp)';
+}
+
+function collectTTFM() {
+  const ttfm = [];
+  state.grafts.forEach((g, i) => {
+    const bid = 'ttfm-b'+i;
+    const xid = 'ttfm-xc'+i;
+    // Off-clamp reading
+    const pi = document.getElementById(bid+'-pi')?.value;
+    const df = document.getElementById(bid+'-df')?.value;
+    const fl = document.getElementById(bid+'-fl')?.value;
+    if(pi || df || fl) ttfm.push({...g, xc:false, pi:pi||'?', df:df||'?', flow:fl||'?'});
+    // XC reading (only if row is visible)
+    const xcRow = document.getElementById(xid);
+    if(xcRow && xcRow.classList.contains('visible')) {
+      const xpi = document.getElementById(xid+'-pi')?.value;
+      const xdf = document.getElementById(xid+'-df')?.value;
+      const xfl = document.getElementById(xid+'-fl')?.value;
+      if(xpi || xdf || xfl) ttfm.push({...g, xc:true, pi:xpi||'?', df:xdf||'?', flow:xfl||'?'});
+    }
+  });
+  state.ttfm = ttfm;
+}
+
+// Navigation
+function updateNav() {
+  const pct = Math.round((cur/total)*100);
+  document.getElementById('prog').style.width = pct+'%';
+  document.getElementById('step-label').textContent = `Step ${cur} of ${total} — ${['Procedure','Findings','Conduits','Grafts','TTFM','Times','Closing'][cur-1]}`;
+  document.getElementById('btn-back').style.display = cur===1?'none':'block';
+  document.getElementById('btn-next').textContent = cur===total ? 'Generate report' : 'Next';
+  document.getElementById('btn-next').className = cur===total ? 'btn btn-success' : 'btn btn-primary';
+}
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function nextStep() {
+  if(cur===4) buildTTFM();
+  if(cur===total) { generate(); return; }
+  cur++;
+  showStep(cur);
+  updateNav();
+}
+function prevStep() {
+  if(cur>1) { cur--; showStep(cur); updateNav(); }
+}
+
+// Generate
+function generate() {
+  collectTTFM();
+  const g = state;
+  const grafts = g.grafts;
+  const notGrafted = document.getElementById('not-grafted').value.trim();
+  const xcTime = document.getElementById('xc-time').value;
+  const cpbTime = document.getElementById('cpb-time').value;
+  const adverse = document.getElementById('adverse').value.trim();
+
+  // SVG line
+  let svgLine = '';
+  if(g.svgLeg) svgLine = `${g.svgLeg} SVG harvested via ${g.svgTech} technique, ${g.svgQual}`;
+
+  // LIMA line
+  const limaMap = {
+    'sim-pedicled':'LIMA harvested simultaneously via pedicled technique, good size and flow',
+    'sim-skeletonised':'LIMA harvested simultaneously via skeletonised technique, good size and flow',
+    'after-pedicled':'LIMA harvested via pedicled technique, good size and flow',
+    'injured':'Pedicle LIMA harvested simultaneously — LIMA injured during harvest, decided for venous graft to LAD instead'
+  };
+  const limaLine = limaMap[g.lima]||'';
+
+  // RA line
+  const raMap = {
+    'left-open':'Left radial artery harvested via open technique, good size and quality',
+    'left-pedicled':'Left radial artery harvested via pedicled technique, good size and quality',
+    'right-open':'Right radial artery harvested via open technique, good size and quality',
+  };
+  const raLine = raMap[g.ra]||'';
+
+  // TTFM lines
+  const xcLines = state.ttfm.filter(t=>t.xc).map(t=>`${t.conduit} to ${t.target} XC (${t.size}) PI ${t.pi}, DF ${t.df}%, Flow ${t.flow}ml/min`);
+  const offLines = state.ttfm.filter(t=>!t.xc).map(t=>{
+    const base=`${t.conduit} to ${t.target} (${t.size}) PI ${t.pi}, DF ${t.df}%, Flow ${t.flow}ml/min`;
+    return (parseFloat(t.pi)>5 && parseFloat(t.flow)<15) ? base+' — likely competitive flow' : base;
+  });
+  const allTTFM = [...xcLines,...offLines];
+  const ttfmBlock = allTTFM.join('\n') || '[TTFM: values not entered]';
+  window._ttfmOnly = allTTFM.join('\n') || '[No TTFM values entered]';
+
+  // Counts
+  const distal = grafts.length;
+  const proximal = grafts.filter(x=>x.conduit!=='LIMA').length;
+
+  // Drains
+  const drainParts = [];
+  if(document.getElementById('drain-med').checked) drainParts.push('mediastinal drain');
+  if(document.getElementById('drain-lp').checked) drainParts.push('left pleural drain');
+  if(document.getElementById('drain-rp').checked) drainParts.push('right pleural drain');
+  const drainSentence = drainParts.length ? `A ${drainParts.join(', a ')} ${drainParts.length>1?'were':'was'} inserted.` : '';
+
+  // Pacing
+  const pacingMap = {
+    none:'NO pacing wire was placed.',
+    '1RV':'A right ventricular pacing wire was placed.',
+    '2RV':'2 right ventricular pacing wires were placed.',
+    'RA+RV':'Right atrial and right ventricular pacing wires were placed.'
+  };
+  const pacingSentence = pacingMap[g.pacing]||'';
+
+  // Sternal
+  const sternalNum = document.getElementById('sternal-num').value||'6';
+  const sternalSentence = `Chest was closed in routine fashion with ${sternalNum} ${g.sternalType==='figure-of-eight'?'figure-of-eight':'single'} sternal wires.`;
+
+  // Proximal anastomosis sentence
+  const proxTech = g.anastTech==='single-xc'
+    ? 'Proximal anastomosis of RSVG grafts done to ascending aorta under single cross clamp using prolene 6/0.'
+    : 'Proximal anastomosis of RSVG grafts done to ascending aorta with side biting clamp using prolene 6/0. Clamp released and grafts deaired.';
+
+  const xcRelease = g.anastTech==='single-xc'
+    ? 'Deairing done, proceed with proximal anastomosis under single cross clamp.\nCross clamp released.'
+    : 'Cross clamp released after deairing.\n'+proxTech;
+
+  // SVG harvest sentence for steps
+  let svgHarvestSentence = '';
+  if(g.svgLeg==='Bilateral') svgHarvestSentence = `Bilateral SVG harvested via ${g.svgTech} technique.`;
+  else if(g.svgLeg) svgHarvestSentence = `${g.svgLeg} SVG harvested via ${g.svgTech} technique.`;
+
+  // LIMA steps sentence
+  let limaStepsSentence = '';
+  if(g.lima==='injured') limaStepsSentence = 'Pedicle LIMA harvested simultaneously — LIMA injured during harvest, decided for venous graft to LAD instead.';
+  else if(g.lima.startsWith('sim')) limaStepsSentence = `Pedicle LIMA harvested simultaneously, good size and flow.`;
+  else if(g.lima) limaStepsSentence = `Pedicle LIMA harvested, good size and flow.`;
+
+  const raStepsSentence = g.ra ? (g.ra==='left-open'?'Left radial artery harvested via open technique.':g.ra==='left-pedicled'?'Left radial artery harvested via pedicled technique.':'Right radial artery harvested via open technique.') : '';
+
+  // ---- BUILD FINDINGS ----
+  let findings = '';
+  if(g.sternum) findings += g.sternum+'\n';
+  if(g.pericardium) findings += g.pericardium+'\n';
+  if(g.aorta) findings += g.aorta+'\n';
+  if(g.adhesion) findings += g.adhesion+'\n';
+  if(svgLine) findings += svgLine+'\n';
+  if(limaLine) findings += limaLine+'\n';
+  if(raLine) findings += raLine+'\n';
+  if(notGrafted) findings += notGrafted+'\n';
+  findings += ttfmBlock+'\n';
+  if(xcTime) findings += `Cross Clamp Time : ${xcTime} mins\n`;
+  if(cpbTime) findings += `CPB Time : ${cpbTime} mins`;
+
+  // ---- BUILD STEPS ----
+  const hepDose = g.heparin==='Half'?'Half':'Full';
+  let steps = 'The patient was anesthetized under GA.\n';
+  steps += 'Median sternotomy done.\n';
+  if(svgHarvestSentence) steps += svgHarvestSentence+' ';
+  if(limaStepsSentence) steps += limaStepsSentence+' ';
+  if(raStepsSentence) steps += raStepsSentence;
+  steps = steps.trimEnd()+'\n';
+  steps += `${hepDose} dose heparin given.\n`;
+  steps += 'RA and Aorta cannulated and patient put on cardiopulmonary bypass.\n';
+  steps += `Temperature ${g.temperature}.\n`;
+  steps += `Cross clamp applied and ${g.cardioplegia} cardioplegia was given.\n`;
+  steps += 'Distal anastomosis of RSVG grafts done using 7/0 prolene, followed by LIMA to LAD using 7/0 prolene.\n';
+  steps += xcRelease+'\n';
+  steps += 'CPB was disconnected without problems after full rewarming.\n';
+  steps += `There were ${distal} distal and ${proximal} proximal anastomoses onto the aortic root.\n`;
+  steps += pacingSentence+'\n';
+  steps += drainSentence+'\n';
+  steps += 'Haemostasis was then secured using diathermy.\n';
+  steps += 'IV Protamine was given slowly via the central line access for full reversal of heparin, when patient was noted to be stable haemodynamically.\n';
+  steps += sternalSentence+'\n';
+  steps += 'The patient was then transferred to CICU in a satisfactory haemodynamic state.';
+  if(adverse) steps += '\n\nNote: '+adverse;
+
+  // Show output
+  document.getElementById('findings-out').textContent = findings.trim();
+  document.getElementById('steps-out').textContent = steps.trim();
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('output-section').style.display='block';
+  document.getElementById('nav-bar').style.display='none';
+  document.querySelector('.progress-wrap').style.display='none';
+  document.getElementById('prog').style.width='100%';
+  window.scrollTo(0,0);
+}
+
+function copySection(id, btn) {
+  const text = document.getElementById(id).textContent;
+  const label = id==='findings-out' ? '📋 Copy findings' : '📋 Copy operative steps';
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✅ Copied!';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent=label; btn.classList.remove('copied'); },2000);
+  });
+}
+
+function copyTTFMOnly(btn) {
+  const text = window._ttfmOnly || '';
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✅ Copied!';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='📋 Copy TTFM lines only (to replace later)'; btn.classList.remove('copied'); },3000);
+  });
+}
+
+function restart() {
+  location.reload();
+}
+
+updateNav();
+</script>
+</body>
+</html>
