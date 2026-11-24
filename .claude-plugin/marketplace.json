@@ -1,0 +1,13 @@
+{
+  "name": "ctsppum",
+  "owner": { "name": "Ong Hao Siang" },
+  "metadata": { "description": "CTSPPUM / UMMC Cardiothoracic Surgery Claude Code plugins." },
+  "plugins": [
+    {
+      "name": "ctsppum-notifier",
+      "source": "./plugins/ctsppum-notifier",
+      "description": "Build the CTSPPUM surgery list from Google Calendar and send WhatsApp admission / change-of-date messages from the Patient Notifier artifact.",
+      "version": "3.3.0"
+    }
+  ]
+}
