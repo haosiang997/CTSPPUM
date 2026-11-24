@@ -1,6 +1,6 @@
 {
   "name": "ctsppum-notifier",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "CTSPPUM surgery-list workflow: build the patient list Excel from the CTSPPUM Google Calendar, then send WhatsApp admission and change-of-date messages (BM / EN / 中文) from the CTSPPUM Patient Notifier artifact.",
   "author": { "name": "Ong Hao Siang" },
   "keywords": ["cardiothoracic", "ummc", "ctsppum", "whatsapp", "patient-notification", "artifact"],

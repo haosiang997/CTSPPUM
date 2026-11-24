@@ -114,7 +114,7 @@ textarea#templateBox:focus { outline: none; border-color: var(--wa); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 <header><div class="inner">
-  <h1>🏥 CTSPPUM Patient Notifier <span class="ver">v3.3</span></h1>
+  <h1>🏥 CTSPPUM Patient Notifier <span class="ver">v3.4</span></h1>
   <div class="sub">Cardiothoracic Surgery Unit · WhatsApp messages for admission and change-of-date · BM / EN / 中文</div>
 </div></header>
 
@@ -171,6 +171,7 @@ textarea#templateBox:focus { outline: none; border-color: var(--wa); }
       <span class="chip" onclick="insertVar('{{Date}}')">{{Date}} (new op date)</span>
       <span class="chip" onclick="insertVar('{{OldDate}}')">{{OldDate}} (postponed from)</span>
       <span class="chip" onclick="insertVar('{{Date-2days}}')">{{Date-2days}} (ward in)</span>
+      <span class="chip" onclick="insertVar('{{Date-1days}}')">{{Date-1days}} (ward in, if PAC done)</span>
       <span class="chip" onclick="insertVar('{{Date-5days}}')">{{Date-5days}} (stop meds)</span>
     </div>
   </div>
@@ -179,6 +180,7 @@ textarea#templateBox:focus { outline: none; border-color: var(--wa); }
   <div id="patientSection">
     <div class="card">
       <h2>3 · Send Messages</h2>
+      <p class="privacy" style="margin:-6px 0 12px">Send opens WhatsApp Web in a new tab of this browser. Use Google Chrome, where you are signed in to WhatsApp Web.</p>
       <div class="summary-bar" id="summaryBar">✅ 0 patients loaded</div>
       <div class="toast" id="toast" hidden></div>
       <div class="list-tools" id="listTools" style="display:none">
@@ -201,6 +203,13 @@ Kami dari Unit Pembedahan Kardiothorasik (CTSPPUM) ingin mengingatkan bahawa pem
 
 Tarikh masuk wad adalah pada {{Date-2days}}. Selepas berdaftar di kaunter pendaftaran tingkat 1 (Menara Selatan), sila naik ke wad 6UA (Menara Utama).
 
+Sebelum masuk wad, adakah anda boleh hadir ke Klinik Pra-Kemasukan (PAC) kami pada pagi Jumaat ini?
+📍 Tingkat 3, Menara Selatan
+🕢 7:30 pagi: ujian darah, X-ray dan ECG
+🕛 Lebih kurang 12:00 tengah hari: berjumpa dengan pasukan kami
+
+Jika anda dapat hadir, anda boleh masuk wad 1 hari sebelum pembedahan ({{Date-1days}}) dan bukannya 2 hari. Sila balas mesej ini untuk memaklumkan sama ada anda boleh hadir.
+
 Sila pastikan anda telah memberhentikan ubatan-ubatan berikut pada {{Date-5days}} sekiranya ada:
 - Aspirin
 - Clopidogrel (Plavix)
@@ -216,6 +225,13 @@ We from the Cardiothoracic Surgery Unit (CTSPPUM) would like to remind you that 
 
 Your ward admission date is on {{Date-2days}}. After registering at the registration counter on Level 1 (Menara Selatan), please proceed to Ward 6UA (Menara Utama).
 
+Before your admission, would you be able to attend our Pre-Admission Clinic (PAC) this Friday morning?
+📍 Level 3, Menara Selatan
+🕢 7:30 a.m.: blood tests, X-ray and ECG
+🕛 Around 12:00 noon: review with our team
+
+If you are able to attend, you may be admitted 1 day before your surgery ({{Date-1days}}) instead of 2 days. Please reply to this message to let us know whether you can come.
+
 Please ensure that you have stopped the following medications by {{Date-5days}}, if applicable:
 - Aspirin
 - Clopidogrel (Plavix)
@@ -230,6 +246,13 @@ Thank you and we wish you well.
 我们是马来西亚大学医学中心心胸外科团队 (CTSPPUM)，谨此提醒您，您的手术（{{Op}}）已安排在 {{Date}}。
 
 入院日期为 {{Date-2days}}。请先在一楼（南楼 - Menara Selatan）挂号柜台办理登记手续，然后前往 6UA 病房（北楼 - Menara Utama）。
+
+入院前，请问您是否能够在本周五上午到我们的入院前诊所（PAC）就诊？
+📍 南楼（Menara Selatan）三楼
+🕢 上午 7:30：验血、X光及心电图（ECG）
+🕛 中午 12:00 左右：与我们的医疗团队会面
+
+如您能出席，您可以在手术前 1 天（{{Date-1days}}）入院，而无需提前 2 天。请回复此信息，告知我们您是否能够出席。
 
 请确保在 {{Date-5days}} 之前停止服用以下药物（如有）：
 - Aspirin
@@ -253,6 +276,13 @@ Kami memohon maaf atas sebarang kesulitan akibat perubahan ini.
 
 Tarikh masuk wad yang baharu adalah pada {{Date-2days}}. Selepas berdaftar di kaunter pendaftaran tingkat 1 (Menara Selatan), sila naik ke wad 6UA (Menara Utama).
 
+Sebelum masuk wad, adakah anda boleh hadir ke Klinik Pra-Kemasukan (PAC) kami pada pagi Jumaat ini?
+📍 Tingkat 3, Menara Selatan
+🕢 7:30 pagi: ujian darah, X-ray dan ECG
+🕛 Lebih kurang 12:00 tengah hari: berjumpa dengan pasukan kami
+
+Jika anda dapat hadir, anda boleh masuk wad 1 hari sebelum pembedahan ({{Date-1days}}) dan bukannya 2 hari. Sila balas mesej ini untuk memaklumkan sama ada anda boleh hadir.
+
 Sila pastikan anda telah memberhentikan ubatan-ubatan berikut pada {{Date-5days}} sekiranya ada:
 - Aspirin
 - Clopidogrel (Plavix)
@@ -273,6 +303,13 @@ We sincerely apologise for any inconvenience this change may cause you.
 
 Your new ward admission date is on {{Date-2days}}. After registering at the registration counter on Level 1 (Menara Selatan), please proceed to Ward 6UA (Menara Utama).
 
+Before your admission, would you be able to attend our Pre-Admission Clinic (PAC) this Friday morning?
+📍 Level 3, Menara Selatan
+🕢 7:30 a.m.: blood tests, X-ray and ECG
+🕛 Around 12:00 noon: review with our team
+
+If you are able to attend, you may be admitted 1 day before your surgery ({{Date-1days}}) instead of 2 days. Please reply to this message to let us know whether you can come.
+
 Please ensure that you have stopped the following medications by {{Date-5days}}, if applicable:
 - Aspirin
 - Clopidogrel (Plavix)
@@ -292,6 +329,13 @@ Thank you and we wish you well.
 对于此次更改给您带来的不便，我们深表歉意。
 
 新的入院日期为 {{Date-2days}}。请先在一楼（南楼 - Menara Selatan）挂号柜台办理登记手续，然后前往 6UA 病房（北楼 - Menara Utama）。
+
+入院前，请问您是否能够在本周五上午到我们的入院前诊所（PAC）就诊？
+📍 南楼（Menara Selatan）三楼
+🕢 上午 7:30：验血、X光及心电图（ECG）
+🕛 中午 12:00 左右：与我们的医疗团队会面
+
+如您能出席，您可以在手术前 1 天（{{Date-1days}}）入院，而无需提前 2 天。请回复此信息，告知我们您是否能够出席。
 
 请确保在 {{Date-5days}} 之前停止服用以下药物（如有）：
 - Aspirin
