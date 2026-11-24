@@ -1,0 +1,776 @@
+<title>CTSPPUM Patient Notifier</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: single centred working column of numbered step cards (upload → template → send). */
+:root {
+  --bg:#f0f2f5; --card:#ffffff; --fg:#111; --muted:#666; --faint:#999; --line:#e5e7eb; --line-strong:#d0d7de;
+  --row:#fafafa; --row-hover:#f0fdf4; --brand:#075e54; --brand-fg:#ffffff; --wa:#25d366; --wa-hover:#20ba5a;
+  --wa-alt:#128c7e; --wa-alt-hover:#0f7a6d; --bubble:#dcf8c6; --bubble-focus:#e8fdd4; --bubble-line:#b2dfdb;
+  --ok-bg:#e8f5e9; --ok-fg:#2e7d32; --chip-line:#a5d6a7; --chip-hover:#c8e6c9;
+  --warn-bg:#fff7ed; --warn-line:#fed7aa; --warn-fg:#9a3412; --resched:#c2410c; --resched-row:#fffbf5;
+  --info-bg:#eef2ff; --info-line:#c7d2fe; --info-fg:#3730a3; --pin:#6d28d9; --danger:#e53935;
+  --bm-bg:#fef3c7; --bm-fg:#92400e; --toggle-bg:#f4f4f4; --disabled:#bbb;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#0f1514; --card:#17201e; --fg:#e8eceb; --muted:#9aa5a2; --faint:#7b8784; --line:#26312e; --line-strong:#34413e;
+  --row:#1b2523; --row-hover:#1d2d28; --brand:#2bb39f; --brand-fg:#06201c; --wa:#25d366; --wa-hover:#36e07a;
+  --wa-alt:#1aa594; --wa-alt-hover:#22b8a6; --bubble:#1f3a2a; --bubble-focus:#24452f; --bubble-line:#2e5a46;
+  --ok-bg:#183326; --ok-fg:#8fd9a8; --chip-line:#2f5d40; --chip-hover:#21422f;
+  --warn-bg:#33210f; --warn-line:#5c3b17; --warn-fg:#f6b37a; --resched:#fb923c; --resched-row:#231a12;
+  --info-bg:#1c2140; --info-line:#2f3870; --info-fg:#b4bdfb; --pin:#a78bfa; --danger:#f87171;
+  --bm-bg:#3a2f10; --bm-fg:#f3cf6b; --toggle-bg:#222c2a; --disabled:#4b5553; color-scheme:dark; } }
+:root[data-theme="dark"] {
+  --bg:#0f1514; --card:#17201e; --fg:#e8eceb; --muted:#9aa5a2; --faint:#7b8784; --line:#26312e; --line-strong:#34413e;
+  --row:#1b2523; --row-hover:#1d2d28; --brand:#2bb39f; --brand-fg:#06201c; --wa:#25d366; --wa-hover:#36e07a;
+  --wa-alt:#1aa594; --wa-alt-hover:#22b8a6; --bubble:#1f3a2a; --bubble-focus:#24452f; --bubble-line:#2e5a46;
+  --ok-bg:#183326; --ok-fg:#8fd9a8; --chip-line:#2f5d40; --chip-hover:#21422f;
+  --warn-bg:#33210f; --warn-line:#5c3b17; --warn-fg:#f6b37a; --resched:#fb923c; --resched-row:#231a12;
+  --info-bg:#1c2140; --info-line:#2f3870; --info-fg:#b4bdfb; --pin:#a78bfa; --danger:#f87171;
+  --bm-bg:#3a2f10; --bm-fg:#f3cf6b; --toggle-bg:#222c2a; --disabled:#4b5553; color-scheme:dark; }
+
+* { box-sizing: border-box; }
+body { margin:0; font-family: var(--font); background: var(--bg); color: var(--fg); }
+header { background: #075e54; color: #fff; padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+header .inner { max-width: 900px; margin: 0 auto; }
+header h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
+header .ver { font-size:12px; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-weight:500; vertical-align:middle; }
+header .sub { font-size: 13px; opacity: 0.85; }
+.container { max-width: 900px; margin: 0 auto; padding-block: 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border: 1px solid var(--line); }
+.card h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 14px; }
+.upload-zone { border: 2px dashed var(--line-strong); border-radius: 10px; padding: 36px 16px; text-align: center; cursor: pointer; transition: all 0.2s; color: var(--muted); }
+.upload-zone:hover, .upload-zone.drag, .upload-zone:focus-visible { border-color: var(--wa); background: var(--row-hover); color: var(--brand); outline: none; }
+.upload-zone input { display: none; }
+.upload-zone .icon { font-size: 36px; margin-bottom: 8px; }
+.upload-zone p { font-size: 14px; margin: 0; }
+.upload-zone small { font-size: 12px; opacity: 0.8; margin-top: 4px; display: block; }
+.privacy { font-size: 12px; color: var(--faint); margin-top: 10px; }
+.lang-toggle { display: flex; gap: 4px; background: var(--toggle-bg); border-radius: 30px; padding: 4px; width: fit-content; flex-wrap: wrap; }
+.lang-btn { padding: 6px 14px; border-radius: 24px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--muted); font-family: inherit; }
+.lang-btn.active { background: var(--brand); color: var(--brand-fg); }
+.lang-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+textarea#templateBox { width: 100%; height: 220px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 12px; font-size: 13.5px; line-height: 1.6; resize: vertical; font-family: inherit; color: var(--fg); background: var(--card); }
+textarea#templateBox:focus { outline: none; border-color: var(--wa); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { background: var(--ok-bg); color: var(--ok-fg); border: 1px solid var(--chip-line); border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: ui-monospace, Menlo, monospace; }
+.chip:hover { background: var(--chip-hover); }
+#patientSection { display: none; }
+.summary-bar { background: var(--ok-bg); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--ok-fg); margin-bottom: 16px; }
+.date-group { margin-bottom: 24px; }
+.date-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--faint); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.patient-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; background: var(--row); border: 1px solid var(--line); flex-wrap: wrap; }
+.patient-row:hover { background: var(--row-hover); }
+.patient-info { flex: 1 1 260px; min-width: 0; }
+.patient-name { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.patient-meta { font-size: 12px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.btn-wa { background: var(--wa); color: #fff; border: none; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.btn-wa:hover { background: var(--wa-hover); }
+.btn-wa.alt { background: var(--wa-alt); }
+.btn-wa.alt:hover { background: var(--wa-alt-hover); }
+.btn-wa:focus-visible, .tool-btn:focus-visible, .lang-btn:focus-visible, .script-tab:focus-visible, .row-lang button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.preview-box { background: var(--bubble); border-radius: 10px; padding: 10px 14px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 220px; border: 1px solid var(--bubble-line); margin-top: 6px; font-family: inherit; width: 100%; resize: vertical; outline: none; color: var(--fg); }
+.preview-box:focus { border-color: var(--wa); background: var(--bubble-focus); }
+.preview-toggle { font-size: 12px; color: var(--brand); cursor: pointer; margin-top: 6px; display: inline-block; text-decoration: underline; }
+.reset-link { font-size: 12px; color: var(--faint); cursor: pointer; margin-top: 4px; text-decoration: underline; margin-left: 10px; }
+.reset-link:hover { color: var(--danger); }
+.sent-badge { font-size: 11px; color: var(--wa); font-weight: 700; text-align: center; margin-top: 2px; }
+.no-data { text-align: center; color: var(--faint); padding: 40px; font-size: 14px; }
+.script-tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.script-tab { padding: 8px 12px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--faint); border-bottom: 3px solid transparent; font-family: inherit; }
+.script-tab:hover { color: var(--brand); }
+.script-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+.script-tab .cnt { font-size: 11px; background: var(--toggle-bg); color: var(--muted); border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-weight: 700; }
+.script-tab.active .cnt { background: var(--brand); color: var(--brand-fg); }
+.script-tab.resched.active { color: var(--resched); border-bottom-color: var(--resched); }
+.script-tab.resched.active .cnt { background: var(--resched); color: #fff; }
+.resched-badge { font-size: 10px; font-weight: 700; background: var(--warn-bg); color: var(--resched); border: 1px solid var(--warn-line); border-radius: 10px; padding: 2px 8px; letter-spacing: 0.3px; }
+.patient-row.resched { background: var(--resched-row); border-color: var(--warn-line); }
+.old-date { text-decoration: line-through; color: var(--resched); }
+.new-date { font-weight: 700; color: var(--brand); }
+.stat .num.resched { color: var(--resched); }
+.row-lang { display: flex; border: 1px solid var(--line-strong); border-radius: 20px; overflow: hidden; flex-shrink: 0; background: var(--card); }
+.row-lang button { border: none; background: transparent; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 700; padding: 4px 9px; color: var(--faint); }
+.row-lang button:hover { background: var(--row-hover); color: var(--brand); }
+.row-lang button.on { background: var(--brand); color: var(--brand-fg); }
+.row-lang button.on.custom { background: var(--pin); color: #fff; }
+.lang-pin { font-size: 10px; color: var(--pin); text-align: center; margin-top: 2px; font-weight: 700; }
+.list-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.list-tools .hint { font-size:12px; color: var(--faint); }
+.tool-btn { border: 1px solid var(--line-strong); background: var(--card); border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--fg); padding: 6px 12px; }
+.tool-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--row-hover); }
+.toast { background: var(--info-bg); border: 1px solid var(--info-line); color: var(--info-fg); border-radius: 8px; padding: 8px 14px; font-size: 12.5px; margin-bottom: 12px; }
+.warn-bar { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-fg); border-radius: 8px; padding: 10px 16px; font-size: 13px; margin-bottom: 16px; }
+#statsBar { display: none; }
+.stat { text-align: center; min-width: 70px; }
+.stat .num { font-size: 28px; font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
+.stat .lbl { font-size: 12px; color: var(--muted); }
+.stats-row { display: flex; gap: 16px 24px; justify-content: center; padding: 8px 0; flex-wrap: wrap; }
+.divider { width: 1px; background: var(--line); }
+.row-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; align-items:flex-start; }
+.btn-col { display:flex; flex-direction:column; align-items:center; gap:2px; }
+@media (max-width: 520px) { .divider { display:none; } .row-actions { width:100%; justify-content:flex-start; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<header><div class="inner">
+  <h1>🏥 CTSPPUM Patient Notifier <span class="ver">v3.3</span></h1>
+  <div class="sub">Cardiothoracic Surgery Unit · WhatsApp messages for admission and change-of-date · BM / EN / 中文</div>
+</div></header>
+
+<div class="container">
+
+  <!-- Upload -->
+  <div class="card">
+    <h2>1 · Patient List</h2>
+    <div class="upload-zone" id="dropZone" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+      <div class="icon">📋</div>
+      <p>Click or drag & drop your Excel file here</p>
+      <small>Expected columns: Name · RN · Operation Planned · Date of Surgery · Contact Numbers<br>
+      Optional: <b>Old Date</b> — add it only for patients whose operation was postponed</small>
+    </div>
+    <div class="list-tools" style="margin:12px 0 0"><button class="tool-btn" id="sampleBtn" onclick="loadSample()">Try with sample patients</button><span class="hint">Fictional names and numbers, for a look at the workflow.</span></div>
+    <div class="privacy">The file is read in your browser only. Patient details are not uploaded or saved anywhere.</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="card" id="statsBar">
+    <div class="stats-row">
+      <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">Patients</div></div>
+      <div class="divider"></div>
+      <div class="stat"><div class="num" id="statSent">0</div><div class="lbl">Sent</div></div>
+      <div class="divider"></div>
+      <div class="stat"><div class="num" id="statRemaining">0</div><div class="lbl">Remaining</div></div>
+      <div class="divider"></div>
+      <div class="stat"><div class="num resched" id="statResched">0</div><div class="lbl">Date changed</div></div>
+    </div>
+  </div>
+
+  <!-- Template -->
+  <div class="card">
+    <div class="lang-row">
+      <h2 style="margin-bottom:0">2 · Message Templates</h2>
+      <div class="lang-toggle">
+        <button class="lang-btn active" id="btnBM" onclick="setLang('bm')">🇲🇾 Bahasa</button>
+        <button class="lang-btn" id="btnEN" onclick="setLang('en')">🇬🇧 English</button>
+        <button class="lang-btn" id="btnZH" onclick="setLang('zh')">🇨🇳 中文</button>
+      </div>
+    </div>
+
+    <div class="script-tabs">
+      <button class="script-tab active" id="tabStandard" onclick="setScript('standard')">📅 Standard admission <span class="cnt" id="cntStandard">0</span></button>
+      <button class="script-tab resched" id="tabResched" onclick="setScript('reschedule')">🔄 Change of date <span class="cnt" id="cntResched">0</span></button>
+    </div>
+
+    <textarea id="templateBox" oninput="onTemplateEdit()"></textarea>
+
+    <div class="chips">
+      <span class="chip" onclick="insertVar('{{Name}}')">{{Name}}</span>
+      <span class="chip" onclick="insertVar('{{Op}}')">{{Op}}</span>
+      <span class="chip" onclick="insertVar('{{Date}}')">{{Date}} (new op date)</span>
+      <span class="chip" onclick="insertVar('{{OldDate}}')">{{OldDate}} (postponed from)</span>
+      <span class="chip" onclick="insertVar('{{Date-2days}}')">{{Date-2days}} (ward in)</span>
+      <span class="chip" onclick="insertVar('{{Date-5days}}')">{{Date-5days}} (stop meds)</span>
+    </div>
+  </div>
+
+  <!-- Patient list -->
+  <div id="patientSection">
+    <div class="card">
+      <h2>3 · Send Messages</h2>
+      <div class="summary-bar" id="summaryBar">✅ 0 patients loaded</div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="list-tools" id="listTools" style="display:none">
+        <button class="tool-btn" onclick="expandAll()">▾ Expand all</button>
+        <button class="tool-btn" onclick="collapseAll()">▴ Collapse all</button>
+        <span class="hint">Each row can be switched to its own language — the send button always uses what that row shows.</span>
+      </div>
+      <div id="patientList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Templates ──────────────────────────────────────────────────────────────
+const TEMPLATES = {
+ standard: {
+  bm: `Salam sejahtera {{Name}},
+Kami dari Unit Pembedahan Kardiothorasik (CTSPPUM) ingin mengingatkan bahawa pembedahan anda ({{Op}}) telah dijadualkan pada {{Date}}.
+
+Tarikh masuk wad adalah pada {{Date-2days}}. Selepas berdaftar di kaunter pendaftaran tingkat 1 (Menara Selatan), sila naik ke wad 6UA (Menara Utama).
+
+Sila pastikan anda telah memberhentikan ubatan-ubatan berikut pada {{Date-5days}} sekiranya ada:
+- Aspirin
+- Clopidogrel (Plavix)
+- Empagliflozin / Dapagliflozin
+- Dabigatran, Apixaban (Atau ubat cair darah yang lain)
+
+Jika anda mempunyai sebarang soalan, atau jika anda TIDAK PASTI tentang mana-mana ubat yang anda ambil, sila hubungi pasukan kami sebelum memberhentikan sebarang ubat.
+Terima kasih dan semoga selamat.
+— Pasukan CTSPPUM`,
+
+  en: `Dear {{Name}},
+We from the Cardiothoracic Surgery Unit (CTSPPUM) would like to remind you that your surgery ({{Op}}) has been scheduled on {{Date}}.
+
+Your ward admission date is on {{Date-2days}}. After registering at the registration counter on Level 1 (Menara Selatan), please proceed to Ward 6UA (Menara Utama).
+
+Please ensure that you have stopped the following medications by {{Date-5days}}, if applicable:
+- Aspirin
+- Clopidogrel (Plavix)
+- Empagliflozin / Dapagliflozin
+- Dabigatran, Apixaban (or any other blood thinners)
+
+If you have any questions, or if you are UNSURE about any of the medications you are taking, please reach out to our team before stopping any medication.
+Thank you and we wish you well.
+— CTSPPUM Team`,
+
+  zh: `您好 {{Name}}，
+我们是马来西亚大学医学中心心胸外科团队 (CTSPPUM)，谨此提醒您，您的手术（{{Op}}）已安排在 {{Date}}。
+
+入院日期为 {{Date-2days}}。请先在一楼（南楼 - Menara Selatan）挂号柜台办理登记手续，然后前往 6UA 病房（北楼 - Menara Utama）。
+
+请确保在 {{Date-5days}} 之前停止服用以下药物（如有）：
+- Aspirin
+- Plavix
+- Empagliflozin / Dapagliflozin
+- 或其他抗凝血药物
+
+如有任何疑问，或您对正在服用的任何药物有不确定之处，请在停药前先与我们的团队联络。
+谢谢，祝您手术顺利。
+— CTSPPUM 团队`
+ },
+
+ reschedule: {
+  bm: `Salam sejahtera {{Name}},
+Kami dari Unit Pembedahan Kardiothorasik (CTSPPUM) ingin memaklumkan bahawa TARIKH PEMBEDAHAN anda ({{Op}}) telah DIUBAH.
+
+❌ Tarikh asal: {{OldDate}}
+✅ Tarikh baharu: {{Date}}
+
+Kami memohon maaf atas sebarang kesulitan akibat perubahan ini.
+
+Tarikh masuk wad yang baharu adalah pada {{Date-2days}}. Selepas berdaftar di kaunter pendaftaran tingkat 1 (Menara Selatan), sila naik ke wad 6UA (Menara Utama).
+
+Sila pastikan anda telah memberhentikan ubatan-ubatan berikut pada {{Date-5days}} sekiranya ada:
+- Aspirin
+- Clopidogrel (Plavix)
+- Empagliflozin / Dapagliflozin
+- Dabigatran, Apixaban (Atau ubat cair darah yang lain)
+
+Jika anda mempunyai sebarang soalan, atau jika anda TIDAK PASTI tentang mana-mana ubat yang anda ambil, sila hubungi pasukan kami sebelum memberhentikan sebarang ubat.
+Terima kasih dan semoga selamat.
+— Pasukan CTSPPUM`,
+
+  en: `Dear {{Name}},
+We from the Cardiothoracic Surgery Unit (CTSPPUM) would like to inform you that the DATE OF YOUR SURGERY ({{Op}}) has been CHANGED.
+
+❌ Previous date: {{OldDate}}
+✅ New date: {{Date}}
+
+We sincerely apologise for any inconvenience this change may cause you.
+
+Your new ward admission date is on {{Date-2days}}. After registering at the registration counter on Level 1 (Menara Selatan), please proceed to Ward 6UA (Menara Utama).
+
+Please ensure that you have stopped the following medications by {{Date-5days}}, if applicable:
+- Aspirin
+- Clopidogrel (Plavix)
+- Empagliflozin / Dapagliflozin
+- Dabigatran, Apixaban (or any other blood thinners)
+
+If you have any questions, or if you are UNSURE about any of the medications you are taking, please reach out to our team before stopping any medication.
+Thank you and we wish you well.
+— CTSPPUM Team`,
+
+  zh: `您好 {{Name}}，
+我们是马来西亚大学医学中心心胸外科团队 (CTSPPUM)，谨此通知您，您的手术（{{Op}}）日期已更改。
+
+❌ 原定日期：{{OldDate}}
+✅ 新日期：{{Date}}
+
+对于此次更改给您带来的不便，我们深表歉意。
+
+新的入院日期为 {{Date-2days}}。请先在一楼（南楼 - Menara Selatan）挂号柜台办理登记手续，然后前往 6UA 病房（北楼 - Menara Utama）。
+
+请确保在 {{Date-5days}} 之前停止服用以下药物（如有）：
+- Aspirin
+- Plavix
+- Empagliflozin / Dapagliflozin
+- 或其他抗凝血药物
+
+如有任何疑问，或您对正在服用的任何药物有不确定之处，请在停药前先与我们的团队联络。
+谢谢，祝您手术顺利。
+— CTSPPUM 团队`
+ }
+};
+
+let currentLang = 'bm';
+let currentScript = 'standard';   // 'standard' | 'reschedule'
+let patients = [];
+let sentSet = new Set();
+let sentPhones = new Set();   // tracks "idx-phoneIdx" pairs
+let patientOverrides = {};    // idx -> hand-edited message string
+let patientLang      = {};    // idx -> language override ('bm'|'en'|'zh'), unset = follow global
+let openPreviews     = new Set();  // idx of rows whose preview panel is open
+
+// Init template
+document.getElementById('templateBox').value = TEMPLATES.standard.bm;
+
+function saveCurrentTemplate() {
+  TEMPLATES[currentScript][currentLang] = document.getElementById('templateBox').value;
+}
+
+function loadCurrentTemplate() {
+  document.getElementById('templateBox').value = TEMPLATES[currentScript][currentLang];
+}
+
+function onTemplateEdit() {
+  saveCurrentTemplate();
+  refreshPreviews();
+}
+
+const LANG_LABEL = { bm: 'Bahasa Malaysia', en: 'English', zh: '中文' };
+
+// Global language. Rows with their own language override are left alone.
+function setLang(lang) {
+  saveCurrentTemplate();          // keep template edits before switching
+  currentLang = lang;
+
+  // Hand-edited messages are regenerated in the new language (chosen behaviour).
+  // Only rows that actually follow the global language are reset.
+  const wiped = Object.keys(patientOverrides)
+    .map(Number)
+    .filter(i => patientLang[i] === undefined);
+  wiped.forEach(i => delete patientOverrides[i]);
+
+  loadCurrentTemplate();
+  document.getElementById('btnBM').classList.toggle('active', lang === 'bm');
+  document.getElementById('btnEN').classList.toggle('active', lang === 'en');
+  document.getElementById('btnZH').classList.toggle('active', lang === 'zh');
+
+  if (patients.length > 0) {
+    renderPatients();
+    const pinned = Object.keys(patientLang).length;
+    showToast(
+      `🌐 Switched to ${LANG_LABEL[lang]}.` +
+      (wiped.length ? ` ${wiped.length} hand-edited message${wiped.length !== 1 ? 's were' : ' was'} regenerated.` : '') +
+      (pinned ? ` ${pinned} row${pinned !== 1 ? 's keep their' : ' keeps its'} own language.` : '')
+    );
+  }
+}
+
+// Per-patient language override
+function setPatientLang(idx, lang) {
+  if (patientLang[idx] === lang) {
+    delete patientLang[idx];      // clicking the active pinned language releases it
+  } else {
+    patientLang[idx] = lang;
+  }
+  delete patientOverrides[idx];   // regenerate in the newly chosen language
+  renderPatients();
+}
+
+function langFor(idx) {
+  return patientLang[idx] !== undefined ? patientLang[idx] : currentLang;
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+}
+
+function expandAll() {
+  patients.forEach((_, i) => openPreviews.add(i));
+  renderPatients();
+}
+function collapseAll() {
+  openPreviews.clear();
+  renderPatients();
+}
+
+function setScript(type) {
+  saveCurrentTemplate();
+  currentScript = type;
+  loadCurrentTemplate();
+  document.getElementById('tabStandard').classList.toggle('active', type === 'standard');
+  document.getElementById('tabResched').classList.toggle('active', type === 'reschedule');
+  if (patients.length > 0) renderPatients();   // keeps open panels open, refreshes text
+}
+
+// ── Date arithmetic ─────────────────────────────────────────────────────────
+function parseDateStr(str) {
+  // Expects DD/MM/YYYY or D/M/YYYY
+  if (!str) return null;
+  const parts = String(str).trim().split('/');
+  if (parts.length !== 3) return null;
+  return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+}
+
+function formatDate(date) {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
+}
+
+function subtractDays(dateStr, n) {
+  const d = parseDateStr(dateStr);
+  if (!d) return dateStr;
+  d.setDate(d.getDate() - n);
+  return formatDate(d);
+}
+
+// Which script does this patient get? Driven purely by the spreadsheet:
+// Old Date present AND different from the operation date  ->  change-of-date script
+// otherwise                                               ->  standard admission script
+function scriptFor(patient) {
+  return patient.isRescheduled ? 'reschedule' : 'standard';
+}
+
+function templateFor(patient, lang) {
+  const type = scriptFor(patient);
+  // The textarea holds the live (possibly unsaved) text for the script+language on screen
+  return (type === currentScript && lang === currentLang)
+    ? document.getElementById('templateBox').value
+    : TEMPLATES[type][lang];
+}
+
+function buildMessage(patient, idx) {
+  const lang = idx === undefined ? currentLang : langFor(idx);
+  let msg = templateFor(patient, lang)
+    .replace(/\{\{Name\}\}/g, patient.name)
+    .replace(/\{\{Op\}\}/g, patient.op)
+    .replace(/\{\{OldDate\}\}/g, patient.oldDate || '—')
+    .replace(/\{\{Date\}\}/g, patient.date);
+  // All offsets are computed from the NEW operation date
+  msg = msg.replace(/\{\{Date-(\d+)days\}\}/g, (_, n) => subtractDays(patient.date, parseInt(n)));
+  return msg;
+}
+
+// Refresh open previews for patients that have no manual override
+function refreshPreviews() {
+  for (let i = 0; i < patients.length; i++) {
+    if (patientOverrides[i] !== undefined) continue;
+    const ta = document.getElementById(`preview-${i}`);
+    if (ta) ta.value = buildMessage(patients[i], i);
+  }
+}
+
+function getPatientMessage(idx) {
+  return patientOverrides[idx] !== undefined
+    ? patientOverrides[idx]
+    : buildMessage(patients[idx], idx);
+}
+
+function onPatientMsgEdit(idx, value) {
+  patientOverrides[idx] = value;
+  const resetEl = document.getElementById(`reset-${idx}`);
+  if (resetEl) resetEl.hidden = false;
+}
+
+function resetPatientMsg(idx) {
+  delete patientOverrides[idx];
+  const ta = document.getElementById(`preview-${idx}`);
+  if (ta) ta.value = buildMessage(patients[idx], idx);
+  const resetEl = document.getElementById(`reset-${idx}`);
+  if (resetEl) resetEl.hidden = true;
+}
+
+// ── Excel parsing ────────────────────────────────────────────────────────────
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    parsePatients(rows);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function normaliseKey(k) {
+  return k.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findCol(row, candidates) {
+  const normRow = {};
+  for (const k of Object.keys(row)) normRow[normaliseKey(k)] = row[k];
+  for (const c of candidates) {
+    const val = normRow[normaliseKey(c)];
+    if (val !== undefined && val !== '') return String(val).trim();
+  }
+  return '';
+}
+
+function parsePhones(raw) {
+  if (!raw) return [];
+  return String(raw).split(/[\/,;]+/).map(s => {
+    s = s.trim().replace(/\s+/g, '').replace(/-/g, '');
+    if (!s) return null;
+    // Normalise to international format
+    if (s.startsWith('0')) s = '60' + s.slice(1);
+    if (!s.startsWith('60')) s = '60' + s;
+    return s;
+  }).filter(Boolean);
+}
+
+function parsePatients(rows) {
+  patients = [];
+  patientOverrides = {};
+  patientLang = {};
+  openPreviews = new Set();
+  sentSet = new Set();
+  sentPhones = new Set();
+  for (const row of rows) {
+    const name = findCol(row, ['Name', 'Patient Name', 'name']);
+    const rn   = findCol(row, ['RN', 'Registration', 'rn']);
+    const op   = findCol(row, ['Operation Planned', 'Operation', 'op', 'procedure']);
+    const date = findCol(row, ['Date of Surgery', 'Surgery Date', 'Date', 'date']);
+    const phoneRaw = findCol(row, ['Contact Numbers', 'Contact', 'Phone', 'Mobile', 'phone', 'contact']);
+    let oldDate    = findCol(row, ['Old Date', 'Previous Date', 'Original Date', 'olddate']);
+
+    if (!name || !date) continue; // Skip empty rows
+
+    // Old Date only counts if it is a real date AND actually differs from the op date.
+    // Blank, "-", "Not recorded", or same-as-new  ->  treated as no change.
+    if (!parseDateStr(oldDate) || oldDate.trim() === String(date).trim()) oldDate = '';
+    const isRescheduled = oldDate !== '';
+
+    const phones = parsePhones(phoneRaw);
+    patients.push({ name, rn, op, date, oldDate, isRescheduled, phones });
+  }
+
+  // Sort by date
+  patients.sort((a, b) => {
+    const da = parseDateStr(a.date), db = parseDateStr(b.date);
+    if (!da || !db) return 0;
+    return da - db;
+  });
+
+  const nResched = patients.filter(p => p.isRescheduled).length;
+  document.getElementById('statTotal').textContent = patients.length;
+  document.getElementById('statResched').textContent = nResched;
+  document.getElementById('cntStandard').textContent = patients.length - nResched;
+  document.getElementById('cntResched').textContent = nResched;
+  document.getElementById('statsBar').style.display = 'block';
+  document.getElementById('patientSection').style.display = 'block';
+  document.getElementById('summaryBar').textContent =
+    `✅ ${patients.length} patient${patients.length !== 1 ? 's' : ''} loaded` +
+    (nResched ? ` · 🔄 ${nResched} with a changed operation date` : '');
+  renderPatients();
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderPatients() {
+  const container = document.getElementById('patientList');
+  if (patients.length === 0) {
+    container.innerHTML = '<div class="no-data">No patients found. Check column names in your Excel file.</div>';
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  for (const p of patients) {
+    const key = p.date || 'Unknown Date';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(p);
+  }
+
+  container.innerHTML = '';
+
+  // Warn if an old date is later than the new date (likely a data-entry slip)
+  const suspect = patients.filter(p => {
+    if (!p.isRescheduled) return false;
+    const o = parseDateStr(p.oldDate), n = parseDateStr(p.date);
+    return o && n && o > n;
+  });
+  if (suspect.length) {
+    const w = document.createElement('div');
+    w.className = 'warn-bar';
+    w.innerHTML = `⚠️ ${suspect.length} patient${suspect.length !== 1 ? 's have' : ' has'} an Old Date <b>later</b> than the operation date (${
+      suspect.map(p => escapeHtml(p.name)).join(', ')
+    }). Brought forward rather than postponed — check the sheet before sending.`;
+    container.appendChild(w);
+  }
+
+  for (const [dateKey, group] of Object.entries(groups)) {
+    const section = document.createElement('div');
+    section.className = 'date-group';
+    const label = document.createElement('div');
+    label.className = 'date-label';
+
+    // Format date label nicely
+    const d = parseDateStr(dateKey);
+    if (d) {
+      const dayName = d.toLocaleDateString('en-MY', { weekday: 'long' });
+      const dateStr = d.toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+      label.textContent = `${dayName}, ${dateStr}`;
+    } else {
+      label.textContent = dateKey;
+    }
+    section.appendChild(label);
+
+    for (let i = 0; i < group.length; i++) {
+      const p = group[i];
+      const idx = patients.indexOf(p);
+      section.appendChild(buildPatientRow(p, idx));
+    }
+
+    container.appendChild(section);
+  }
+
+  // Panels stay open across language / script switches so the change is visible live
+  document.getElementById('listTools').style.display = 'flex';
+  patients.forEach((_, i) => applyPreviewState(i));
+
+  updateStats();
+}
+
+function buildPatientRow(p, idx) {
+  const row = document.createElement('div');
+  row.className = 'patient-row' + (p.isRescheduled ? ' resched' : '');
+  row.id = `row-${idx}`;
+
+  const rowLang = langFor(idx);
+  const pinned  = patientLang[idx] !== undefined;
+  const langPicker = `
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="row-lang" title="${p.isRescheduled ? 'Change-of-date script' : 'Standard admission script'} — click to set this patient's language">
+        ${['bm','en','zh'].map(l => `
+          <button class="${rowLang === l ? 'on' + (pinned ? ' custom' : '') : ''}"
+                  onclick="setPatientLang(${idx},'${l}')"
+                  title="${LANG_LABEL[l]}">${l === 'bm' ? 'BM' : l === 'en' ? 'EN' : '中文'}</button>`).join('')}
+      </div>
+      <div class="lang-pin" ${pinned ? '' : 'hidden'}>📌 pinned</div>
+    </div>`;
+
+  const phoneBtns = p.phones.length === 0
+    ? '<span style="font-size:12px;color:var(--faint)">No number</span>'
+    : p.phones.map((ph, pi) => {
+        const label = pi === 0 ? '📱 Send' : '📱 Alt.';
+        const cls = pi === 0 ? 'btn-wa' : 'btn-wa alt';
+        const alreadySent = sentPhones.has(`${idx}-${pi}`);
+        return `
+          <div class="btn-col">
+            <a class="${cls}" href="${escapeAttr(waUrl(idx, pi))}" target="_blank" rel="noopener" onclick="openWhatsApp(this,${idx},${pi})" id="btn-${idx}-${pi}" title="+${ph}">${alreadySent ? '✓ ' + label : label}</a>
+            <div class="sent-badge" id="badge-${idx}-${pi}" ${alreadySent ? '' : 'hidden'}>✓ sent</div>
+          </div>`;
+      }).join('');
+
+  const hasOverride = patientOverrides[idx] !== undefined;
+
+  row.innerHTML = `
+    <div class="patient-info">
+      <div class="patient-name">${escapeHtml(p.name)}${p.isRescheduled ? ' <span class="resched-badge">🔄 DATE CHANGED</span>' : ''}</div>
+      <div class="patient-meta">RN: ${escapeHtml(p.rn || '—')} · ${escapeHtml(p.op || 'Operation TBC')} · ${
+        p.isRescheduled
+          ? `<span class="old-date">${p.oldDate}</span> → <span class="new-date">${p.date}</span>`
+          : p.date
+      }</div>
+      <span class="preview-toggle" onclick="togglePreview(${idx})">▾ Edit / Preview message</span>
+      <span class="reset-link" id="reset-${idx}" ${hasOverride ? '' : 'hidden'} onclick="resetPatientMsg(${idx})">↺ Reset to template</span>
+      <textarea class="preview-box" id="preview-${idx}" hidden oninput="onPatientMsgEdit(${idx}, this.value)">${escapeHtml(getPatientMessage(idx))}</textarea>
+    </div>
+    ${langPicker}
+    <div class="row-actions">
+      ${phoneBtns}
+    </div>`;
+
+  return row;
+}
+
+function togglePreview(idx) {
+  if (openPreviews.has(idx)) openPreviews.delete(idx);
+  else openPreviews.add(idx);
+  applyPreviewState(idx);
+}
+
+// Show/hide one preview panel according to openPreviews, refreshing its text
+function applyPreviewState(idx) {
+  const box = document.getElementById(`preview-${idx}`);
+  const toggle = document.querySelector(`#row-${idx} .preview-toggle`);
+  if (!box || !toggle) return;
+  if (openPreviews.has(idx)) {
+    if (patientOverrides[idx] === undefined) box.value = buildMessage(patients[idx], idx);
+    box.hidden = false;
+    toggle.textContent = '▴ Hide message';
+  } else {
+    box.hidden = true;
+    toggle.textContent = '▾ Edit / Preview message';
+  }
+}
+
+function waUrl(idx, phoneIdx) {
+  const phone = patients[idx].phones[phoneIdx];
+  return `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(getPatientMessage(idx))}`;
+}
+
+// The send button is a real link (the artifact frame blocks window.open for most viewers).
+// Refresh its href at click time so hand-edits made after render are included.
+function openWhatsApp(a, idx, phoneIdx) {
+  if (!patients[idx].phones[phoneIdx]) return false;
+  a.href = waUrl(idx, phoneIdx);
+
+  // Mark this specific phone as sent (badge only, button stays active)
+  sentPhones.add(`${idx}-${phoneIdx}`);
+  const badge = document.getElementById(`badge-${idx}-${phoneIdx}`);
+  if (badge) badge.hidden = false;
+
+  // Count patient as "sent" once any phone is used
+  sentSet.add(idx);
+  updateStats();
+  return true;
+}
+
+function updateStats() {
+  const sent = sentSet.size;
+  const total = patients.length;
+  document.getElementById('statSent').textContent = sent;
+  document.getElementById('statRemaining').textContent = total - sent;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g,'&quot;');
+}
+
+// ── Insert variable at cursor ─────────────────────────────────────────────
+function insertVar(v) {
+  const ta = document.getElementById('templateBox');
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s + v.length;
+  ta.focus();
+  onTemplateEdit();
+}
+
+// ── Sample data (fictional) ─────────────────────────────────────────────
+function loadSample() {
+  const t = new Date(); const f = n => { const d = new Date(t); d.setDate(d.getDate() + n); return formatDate(d); };
+  parsePatients([
+    { 'Name': 'EXAMPLE PATIENT ONE', 'RN': '40000001', 'Operation Planned': 'CABG', 'Date of Surgery': f(9), 'Contact Numbers': '012-0000001', 'Old Date': '' },
+    { 'Name': 'EXAMPLE PATIENT TWO', 'RN': '40000002', 'Operation Planned': 'MVR', 'Date of Surgery': f(9), 'Contact Numbers': '013-0000002 / 03-00000002', 'Old Date': '' },
+    { 'Name': 'EXAMPLE PATIENT THREE', 'RN': '40000003', 'Operation Planned': 'Right Upper Lobectomy', 'Date of Surgery': f(16), 'Contact Numbers': '016-0000003', 'Old Date': f(2) },
+  ]);
+  document.getElementById('summaryBar').textContent += ' · sample data, not real patients';
+}
+
+// ── Drag & drop ───────────────────────────────────────────────────────────
+const zone = document.getElementById('dropZone');
+zone.addEventListener('dragover', ev => { ev.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', ev => {
+  ev.preventDefault();
+  zone.classList.remove('drag');
+  const file = ev.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+</script>
